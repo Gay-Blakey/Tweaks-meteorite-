@@ -42,15 +42,18 @@ jobs:
           mkdir -p $THEOS/include
           echo "Theos structure created"
       
-      - name: Clone and build libmryipc
+      - name: Clone and build libmryipc (from fork)
         run: |
-          echo "=== Setting up libmryipc ==="
+          echo "=== Setting up libmryipc from fork ==="
           
-          # Clone libmryipc to a temp location
+          # Clone from your fork instead of original
           cd /tmp
-          git clone --depth=1 https://github.com/muirey03/libmryipc.git libmryipc 2>&1 || {
-            echo "Failed to clone, attempting fallback..."
-            mkdir -p libmryipc/include/MRYIPCCenter
+          git clone --depth=1 https://github.com/Gay-Blakey/mryipc.git libmryipc 2>&1 || {
+            echo "Failed to clone fork, attempting original..."
+            git clone --depth=1 https://github.com/muirey03/libmryipc.git libmryipc 2>&1 || {
+              echo "Failed to clone, attempting fallback..."
+              mkdir -p libmryipc/include/MRYIPCCenter
+            }
           }
           
           if [ -d "libmryipc" ]; then
