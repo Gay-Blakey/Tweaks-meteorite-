@@ -52,10 +52,18 @@ static void UpdateTodayModel()
 UIImage *GetConditionsImage(long long c)
 {
 	NSString *imagePath = [NSString stringWithFormat:@"/Library/Application Support/Meteorite/%lld.png", c];
-	if ([NSFileManager.defaultManager fileExistsAtPath:imagePath isDirectory:NULL])
-		return [UIImage imageWithContentsOfFile:imagePath];
+	if ([NSFileManager.defaultManager fileExistsAtPath:imagePath isDirectory:NULL]) {
+		NSData *imageData = [NSData dataWithContentsOfFile:imagePath];
+		if (imageData)
+			return [UIImage imageWithData:imageData];
+	}
 
-	return [UIImage imageWithContentsOfFile:@"/Library/Application Support/Meteorite/unknown.png"];
+	NSString *unknownPath = @"/Library/Application Support/Meteorite/unknown.png";
+	NSData *unknownData = [NSData dataWithContentsOfFile:unknownPath];
+	if (unknownData)
+		return [UIImage imageWithData:unknownData];
+	
+	return nil;
 }
 
 UIImage *InvertImageColors(UIImage *image)
@@ -362,7 +370,8 @@ static double FloatForKey(NSString *key, double fallback)
 %new
 -(UIImage *)cachedWeatherIconForSize:(CGSize)size format:(int)arg2 scale:(CGFloat)arg3
 {
-	UIImage *icon = [UIImage imageWithContentsOfFile:@"/Library/Application Support/Meteorite/meteorite.png"];
+	NSData *iconData = [NSData dataWithContentsOfFile:@"/Library/Application Support/Meteorite/meteorite.png"];
+	UIImage *icon = iconData ? [UIImage imageWithData:iconData] : nil;
 	UIImage *conditionsImage = GetConditionsImage(conditions);
 
 	BOOL celsius = BoolForKey(@"celsius", NO);
