@@ -96,8 +96,9 @@ jobs:
         run: |
           cd meteorite
           export THEOS=$HOME/theos
-          export CFLAGS="-I$THEOS/include"
-          export LDFLAGS="-L$THEOS/lib"
+          export CFLAGS="-I$THEOS/include -Wno-error=typedef-redefinition -fno-strict-aliasing"
+          export LDFLAGS="-L$THEOS/lib -undefined dynamic_lookup"
+          export OCLFLAGS="-Wno-error=typedef-redefinition"
           
           echo "=== Build Environment ==="
           echo "THEOS: $THEOS"
@@ -110,7 +111,7 @@ jobs:
           
           echo "=== Starting Build ==="
           make clean
-          make FINALPACKAGE=1 THEOS=$THEOS CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS"
+          make FINALPACKAGE=1 THEOS=$THEOS CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS" OCLFLAGS="$OCLFLAGS"
       
       - name: Check build output
         if: always()
