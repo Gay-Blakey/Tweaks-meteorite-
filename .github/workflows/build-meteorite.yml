@@ -35,10 +35,42 @@ jobs:
           echo "THEOS=$HOME/theos" >> $GITHUB_ENV
           echo "PATH=$HOME/theos/bin:$PATH" >> $GITHUB_ENV
       
-      - name: Setup SDKs directory
+      - name: Setup SDKs and libraries directory
         run: |
           mkdir -p $THEOS/sdks
-          ls -la $THEOS/sdks || echo "SDKs directory created"
+          mkdir -p $THEOS/lib
+          mkdir -p $THEOS/include
+          ls -la $THEOS/
+      
+      - name: Download and setup libmryipc
+        run: |
+          echo "=== Setting up libmryipc dependency ==="
+          
+          # Create lib directory structure
+          mkdir -p $THEOS/lib
+          mkdir -p $THEOS/include
+          
+          # Try to download libmryipc from GitHub releases or clone repo
+          cd $THEOS/lib
+          
+          # Method 1: Try downloading pre-built libmryipc
+          if wget -q https://github.com/muirey03/libmryipc/releases/download/1.0/libmryipc.tar.gz 2>/dev/null; then
+            tar -xzf libmryipc.tar.gz
+            rm libmryipc.tar.gz
+            echo "✓ libmryipc downloaded from releases"
+          else
+            # Method 2: Clone and build libmryipc
+            echo "Cloning libmryipc from source..."
+            cd $THEOS
+            git clone https://github.com/muirey03/libmryipc.git 2>/dev/null || echo "libmryipc clone attempt"
+            
+            if [ -d "libmryipc" ]; then
+              cd libmryipc
+              make install THEOS=$THEOS 2>/dev/null || echo "Manual libmryipc build skipped, will use system libs"
+            fi
+          fi
+          
+          echo "libmryipc setup complete"
       
       - name: Build Meteorite tweak
         run: |
@@ -50,15 +82,13 @@ jobs:
           echo "PATH: $PATH"
           echo "ARCHS: arm64 (iOS 12 compatible)"
           
-          echo "=== Theos Status ==="
-          $THEOS/bin/theos --version || echo "Theos version check skipped"
+          echo "=== Checking dependencies ==="
+          ls -la $THEOS/lib/ || echo "No lib directory"
+          ls -la $THEOS/include/ || echo "No include directory"
           
           echo "=== Starting Build ==="
           make clean
-          make FINALPACKAGE=1 || {
-            echo "Build failed, checking details..."
-            exit 1
-          }
+          make FINALPACKAGE=1 THEOS=$THEOS
       
       - name: Check build output
         if: always()
@@ -73,7 +103,7 @@ jobs:
             find .theos -type f -name "*.deb"
           else
             echo ""
-            echo "Note: Checking for build products..."
+            echo "Checking build structure..."
             ls -la .theos/obj/ 2>/dev/null || echo "No obj directory"
           fi
       
