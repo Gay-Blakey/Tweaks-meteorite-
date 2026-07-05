@@ -24,41 +24,63 @@ jobs:
         run: |
           brew install ldid
           brew install xz
+          brew install dpkg
       
       - name: Clone Theos
         run: |
           git clone --recursive https://github.com/theos/theos.git $HOME/theos
+        env:
+          THEOS: ${{ runner.temp }}/theos
       
       - name: Set Theos environment
         run: |
           echo "THEOS=$HOME/theos" >> $GITHUB_ENV
+          echo "PATH=$HOME/theos/bin:$PATH" >> $GITHUB_ENV
       
-      - name: Download iOS SDK
+      - name: Download and setup iOS SDK
         run: |
           mkdir -p $THEOS/sdks
           cd $THEOS/sdks
-          # Download the latest iOS SDK (this may vary based on your needs)
-          # Using a pre-compiled SDK for faster builds
-          curl -L https://github.com/theos/sdks/releases/download/sdks/iPhoneOS14.4.sdk.tar.gz -o sdk.tar.gz
-          tar -xzf sdk.tar.gz
-          rm sdk.tar.gz
+          # Download iOS SDK from theos/sdks releases
+          echo "Downloading iOS SDK..."
+          wget -q https://github.com/theos/sdks/releases/download/sdks/iPhoneOS14.4.sdk.tar.gz -O iphone.tar.gz || \
+          wget -q https://github.com/theos/sdks/releases/download/sdks/iPhoneOS15.0.sdk.tar.gz -O iphone.tar.gz || \
+          wget -q https://github.com/theos/sdks/releases/download/sdks/iPhoneOS16.0.sdk.tar.gz -O iphone.tar.gz
+          
+          if [ -f iphone.tar.gz ]; then
+            tar -xzf iphone.tar.gz
+            rm iphone.tar.gz
+            echo "SDK setup complete"
+          else
+            echo "Warning: SDK download failed, attempting to use system SDK"
+          fi
       
       - name: Build Meteorite tweak
         run: |
           cd meteorite
+          export THEOS=$HOME/theos
           make clean
           make
+        env:
+          THEOS: ${{ env.THEOS }}
+      
+      - name: Check build output
+        if: always()
+        run: |
+          cd meteorite
+          find .theos -type f -name "*.deb" 2>/dev/null || echo "No .deb files found"
+          ls -la .theos/obj/debug/ 2>/dev/null || echo "Debug folder not found"
       
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         if: success()
         with:
           name: meteorite-build
-          path: meteorite/.theos/obj/debug/*.deb
+          path: meteorite/.theos/obj/debug/
           retention-days: 30
       
       - name: Comment on PR with build status
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && success()
         uses: actions/github-script@v7
         with:
           script: |
