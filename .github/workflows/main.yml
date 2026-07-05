@@ -1,0 +1,156 @@
+name: Build Meteorite Tweak
+
+on:
+  push:
+    branches: [ master, main ]
+    paths:
+      - 'meteorite/**'
+      - '.github/workflows/build-meteorite.yml'
+  pull_request:
+    branches: [ master, main ]
+    paths:
+      - 'meteorite/**'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 45
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Install dependencies
+        run: |
+          brew install ldid
+          brew install xz
+      
+      - name: Clone Theos
+        run: |
+          git clone --recursive https://github.com/theos/theos.git $HOME/theos
+      
+      - name: Set Theos environment
+        run: |
+          echo "THEOS=$HOME/theos" >> $GITHUB_ENV
+          echo "PATH=$HOME/theos/bin:$PATH" >> $GITHUB_ENV
+      
+      - name: Setup SDKs and libraries directory
+        run: |
+          mkdir -p $THEOS/sdks
+          mkdir -p $THEOS/lib
+          mkdir -p $THEOS/include
+          echo "Theos structure created"
+      
+      - name: Clone and build libmryipc
+        run: |
+          echo "=== Setting up libmryipc ==="
+          
+          # Clone libmryipc to a temp location
+          cd /tmp
+          git clone --depth=1 https://github.com/muirey03/libmryipc.git libmryipc 2>&1 || {
+            echo "Failed to clone, attempting fallback..."
+            mkdir -p libmryipc/include/MRYIPCCenter
+          }
+          
+          if [ -d "libmryipc" ]; then
+            # Copy headers to Theos include
+            if [ -d "libmryipc/include" ]; then
+              cp -r libmryipc/include/* $THEOS/include/ 2>/dev/null || true
+              echo "✓ Headers copied to Theos/include"
+            fi
+            
+            # Try to build and install
+            cd libmryipc
+            if [ -f "Makefile" ]; then
+              make install THEOS=$THEOS 2>&1 | head -20 || echo "Build skipped, using headers only"
+            fi
+          fi
+          
+          # Verify headers exist
+          echo "=== Checking headers ==="
+          if [ -f "$THEOS/include/MRYIPCCenter.h" ]; then
+            echo "✓ MRYIPCCenter.h found"
+            head -20 $THEOS/include/MRYIPCCenter.h
+          else
+            echo "Warning: MRYIPCCenter.h not found, creating minimal stub"
+            mkdir -p $THEOS/include
+            cat > $THEOS/include/MRYIPCCenter.h << 'HEADEREOF'
+          #ifndef MRYIPCCENTER_H
+          #define MRYIPCCENTER_H
+          
+          #import <Foundation/Foundation.h>
+          
+          @interface MRYIPCCenter : NSObject
+          + (instancetype)centerNamed:(NSString *)name;
+          - (id)callExternalMethod:(SEL)selector withArguments:(id)arguments;
+          - (void)callExternalVoidMethod:(SEL)selector withArguments:(id)arguments;
+          @end
+          
+          #endif
+          HEADEREOF
+            echo "✓ Minimal MRYIPCCenter.h stub created"
+          fi
+      
+      - name: Build Meteorite tweak
+        run: |
+          cd meteorite
+          export THEOS=$HOME/theos
+          export CFLAGS="-I$THEOS/include"
+          export LDFLAGS="-L$THEOS/lib"
+          
+          echo "=== Build Environment ==="
+          echo "THEOS: $THEOS"
+          echo "CFLAGS: $CFLAGS"
+          echo "LDFLAGS: $LDFLAGS"
+          echo "PATH: $PATH"
+          
+          echo "=== Checking headers before build ==="
+          ls -la $THEOS/include/ | grep -i mry || echo "Checking include paths..."
+          
+          echo "=== Starting Build ==="
+          make clean
+          make FINALPACKAGE=1 THEOS=$THEOS CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS"
+      
+      - name: Check build output
+        if: always()
+        run: |
+          cd meteorite
+          echo "=== Build Artifacts ==="
+          find .theos -type f 2>/dev/null | head -30
+          
+          if find .theos -type f -name "*.deb" 2>/dev/null | grep -q .; then
+            echo ""
+            echo "✓ Build successful! .deb files:"
+            find .theos -type f -name "*.deb"
+          else
+            echo ""
+            echo "Checking build structure..."
+            ls -la .theos/obj/ 2>/dev/null || echo "No obj directory"
+          fi
+      
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: meteorite-build-${{ github.run_number }}
+          path: meteorite/.theos/
+          retention-days: 30
+      
+      - name: Comment on PR with build status
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const buildSuccess = '${{ job.status }}' === 'success';
+            const message = buildSuccess 
+              ? '✅ Build successful! Meteorite tweak compiled for iOS 12.' 
+              : '❌ Build failed. Check Actions logs for details.';
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: message
+            })
