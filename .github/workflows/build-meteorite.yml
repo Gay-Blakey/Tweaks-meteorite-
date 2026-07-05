@@ -50,7 +50,6 @@ jobs:
           cd /tmp
           git clone --depth=1 https://github.com/muirey03/libmryipc.git libmryipc 2>&1 || {
             echo "Failed to clone, attempting fallback..."
-            # Create minimal header structure as fallback
             mkdir -p libmryipc/include/MRYIPCCenter
           }
           
@@ -76,20 +75,20 @@ jobs:
           else
             echo "Warning: MRYIPCCenter.h not found, creating minimal stub"
             mkdir -p $THEOS/include
-            cat > $THEOS/include/MRYIPCCenter.h << 'EOF'
-#ifndef MRYIPCCENTER_H
-#define MRYIPCCENTER_H
-
-#import <Foundation/Foundation.h>
-
-@interface MRYIPCCenter : NSObject
-+ (instancetype)centerNamed:(NSString *)name;
-- (id)callExternalMethod:(SEL)selector withArguments:(id)arguments;
-- (void)callExternalVoidMethod:(SEL)selector withArguments:(id)arguments;
-@end
-
-#endif
-EOF
+            cat > $THEOS/include/MRYIPCCenter.h << 'HEADEREOF'
+          #ifndef MRYIPCCENTER_H
+          #define MRYIPCCENTER_H
+          
+          #import <Foundation/Foundation.h>
+          
+          @interface MRYIPCCenter : NSObject
+          + (instancetype)centerNamed:(NSString *)name;
+          - (id)callExternalMethod:(SEL)selector withArguments:(id)arguments;
+          - (void)callExternalVoidMethod:(SEL)selector withArguments:(id)arguments;
+          @end
+          
+          #endif
+          HEADEREOF
             echo "✓ Minimal MRYIPCCenter.h stub created"
           fi
       
