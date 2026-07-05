@@ -6,10 +6,11 @@ include $(THEOS)/makefiles/common.mk
 
 TWEAK_NAME = Meteorite
 Meteorite_FILES = $(wildcard source/*.x source/*.m)
-Meteorite_FRAMEWORKS = CoreLocation
-Meteorite_LIBRARIES = mryipc
+Meteorite_FRAMEWORKS = CoreLocation UIKit
 Meteorite_PRIVATE_FRAMEWORKS = AppSupport
-Meteorite_CFLAGS = -fobjc-arc
+Meteorite_LIBRARIES = mryipc
+Meteorite_CFLAGS = -fobjc-arc -Wno-error=typedef-redefinition
+Meteorite_LDFLAGS = -undefined dynamic_lookup
 
 include $(THEOS_MAKE_PATH)/tweak.mk
 
