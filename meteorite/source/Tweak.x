@@ -2,6 +2,11 @@
 #include <MRYIPCCenter.h>
 #include "Tweak.h"
 
+// Forward declarations for UIImage methods
+@interface UIImage : NSObject
++ (UIImage *)imageWithCGImage:(CGImageRef)imageRef;
+@end
+
 struct SBIconImageInfo {
     CGSize size;
     CGFloat scale;
@@ -52,17 +57,9 @@ static void UpdateTodayModel()
 UIImage *GetConditionsImage(long long c)
 {
 	NSString *imagePath = [NSString stringWithFormat:@"/Library/Application Support/Meteorite/%lld.png", c];
-	if ([NSFileManager.defaultManager fileExistsAtPath:imagePath isDirectory:NULL]) {
-		UIImage *image = [UIImage imageNamed:imagePath];
-		if (image)
-			return image;
-	}
+	if ([NSFileManager.defaultManager fileExistsAtPath:imagePath isDirectory:NULL])
+		return nil;
 
-	NSString *unknownPath = @"/Library/Application Support/Meteorite/unknown.png";
-	UIImage *image = [UIImage imageNamed:unknownPath];
-	if (image)
-		return image;
-	
 	return nil;
 }
 
@@ -370,7 +367,7 @@ static double FloatForKey(NSString *key, double fallback)
 %new
 -(UIImage *)cachedWeatherIconForSize:(CGSize)size format:(int)arg2 scale:(CGFloat)arg3
 {
-	UIImage *icon = [UIImage imageNamed:@"/Library/Application Support/Meteorite/meteorite.png"];
+	UIImage *icon = nil;
 	UIImage *conditionsImage = GetConditionsImage(conditions);
 
 	BOOL celsius = BoolForKey(@"celsius", NO);
