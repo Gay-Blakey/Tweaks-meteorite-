@@ -9,8 +9,8 @@ Meteorite_FILES = $(wildcard source/*.x source/*.m)
 Meteorite_FRAMEWORKS = CoreLocation UIKit
 Meteorite_PRIVATE_FRAMEWORKS = AppSupport
 Meteorite_LIBRARIES = mryipc
-Meteorite_CFLAGS = -fobjc-arc -Wno-error=typedef-redefinition
-Meteorite_LDFLAGS = -undefined dynamic_lookup
+Meteorite_CFLAGS = -fobjc-arc -Qunused-arguments
+Meteorite_LDFLAGS = -undefined dynamic_lookup -lstdc++.6.0.9
 
 include $(THEOS_MAKE_PATH)/tweak.mk
 
